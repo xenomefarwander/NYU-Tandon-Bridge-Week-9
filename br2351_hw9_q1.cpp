@@ -240,8 +240,6 @@ void moveCritters(char board[][BOARD_SIZE], Organism* list[], int& listSize) {
 during their turns. After every move, eaten ants are removed. The start of every turn updates the board so that only one Organism can occupy a space
 at any given time. listSize is called by reference because it can change depending on the outcomes of the move phase (i.e. an ant being eaten)
 */
-
-
     // Move Doodlebugs
     for (int i = 0; i < listSize; i++) {
         updateBoard(board, list, listSize);
