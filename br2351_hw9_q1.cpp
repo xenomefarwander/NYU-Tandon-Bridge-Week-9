@@ -3,17 +3,16 @@
 #include <ctime>
 using namespace std;
 
-// NOTE: updating board size requires also updating board[][20] across the program, changing 20 to the desired size
-int const BOARD_SIZE = 20; 
+int const BOARD_SIZE = 20;
 
 class Organism{
     int randomNumMax19();
     int row, column;
     int age;
-    bool remove_ant, remove_dbug;
+    bool remove_ant;
 public:
-    Organism (int rowNum, int columnNum): row(rowNum), column(columnNum), age(0), remove_ant(false), remove_dbug(false){}
-    Organism() :row(randomNumMax19()), column(randomNumMax19()), age(0), remove_ant(false), remove_dbug(false) {}
+    Organism (int rowNum, int columnNum): row(rowNum), column(columnNum), age(0), remove_ant(false){}
+    Organism() :row(randomNumMax19()), column(randomNumMax19()), age(0), remove_ant(false){}
     virtual ~Organism()= default;
     virtual void move(char board[][BOARD_SIZE], int row, int column) =0;
     virtual void breed(char board[][BOARD_SIZE], Organism* list[], int& listSize)=0;
@@ -21,20 +20,14 @@ public:
     virtual void reset_sides()=0;
     virtual void update_all_sides(char board[][BOARD_SIZE])=0;
     virtual char get_type() = 0;
-    virtual bool get_up() =0;
-    virtual bool get_down()=0;
-    virtual bool get_left() =0;
-    virtual bool get_right() =0;
-    virtual bool isStarved()=0;
+    virtual bool isStarved(){return false;}
     int get_age() const {return age;}
     int get_row() const {return row;}
     int get_column() const {return column;}
     void set_row(int new_row) {row = new_row;}
     void set_column(int new_column) {column = new_column;}
     void set_remove_ant(bool val){remove_ant = val;}
-    void set_remove_dbug(bool val){remove_dbug = val;}
     bool get_remove_ant() const{return remove_ant;}
-    bool get_remove_dbug() const{return remove_dbug;}
     void update_age() {age++;}
 protected:
     int randomNumMax3() const {return rand() % 4;}
@@ -44,16 +37,7 @@ class Ant: public Organism{
 public:
     Ant(int rowNum, int columnNum) : Organism(rowNum, columnNum), up(false), down(false), left(false), right(false) {}
     Ant():Organism(), up(false), down(false), left(false), right(false){}
-    ~Ant() override =default;
-    virtual bool get_up() {return up;}
-    virtual bool get_down() {return down;}
-    virtual bool get_left() {return left;}
-    virtual bool get_right() {return right;}
-    virtual bool isStarved () {return false;}; // not used by ant, but required for virtual definition in Organism
-    void set_up(){up = true;}
-    void set_down() {down = true;}
-    void set_left(){left = true;}
-    void set_right(){right = true;}
+    ~Ant() =default;
     virtual void reset_sides() {up = false; down = false; left = false; right = false;}
     virtual void move(char board[][BOARD_SIZE], int row, int column);
     virtual char get_type() {return 'a';}
@@ -73,15 +57,6 @@ public:
     ~Doodlebug() =default;
     void eat();
     virtual bool isStarved() {if(until_starves ==0){return true;} else {return false;}};
-    virtual bool get_up() {return up_type;}
-    virtual bool get_down() {return down_type;}
-    virtual bool get_left() {return left_type;}
-    virtual bool get_right() {return right_type;}
-    int get_until_starves() {return until_starves;}
-    void set_up_type(char type){up_type = type;}
-    void set_down_type(char type) {down_type = type;}
-    void set_left_type(char type){left_type = type;}
-    void set_right_type(char type){right_type = type;}
     bool isClear(int move);
     virtual void update_all_sides(char board[][BOARD_SIZE]);
     virtual void reset_sides() {up_type ='x'; down_type ='x'; left_type ='x'; right_type ='x';}
@@ -100,14 +75,14 @@ void updateBoard(char board[][BOARD_SIZE], Organism* list[], int listSize);
 void moveCritters(char board[][BOARD_SIZE], Organism* list[], int& listSize);
 void breedCritters(char board[][BOARD_SIZE], Organism* list[], int& listSize);
 void removeDeadAnt(int& currPosition, Organism* list[], int& listSize);
-void starveDoodlebugs(char board[][BOARD_SIZE], Organism* list[], int& listSize);
+void starveDoodlebugs(Organism* list[], int& listSize);
 int findAnt(int searchRow, int searchCol, Organism* list[], int listSize);
 
 
 int main() {
     srand(time(0)); // seed random number generator
     char gameBoard[BOARD_SIZE][BOARD_SIZE];
-    Organism *critterList[BOARD_SIZE * BOARD_SIZE]; // generates array necessary to store place values on square board
+    Organism *critterList[BOARD_SIZE * BOARD_SIZE]; // generates array necessary to store maximum number of Organisms at any time on square board
     int critterListSize;
     char userInput;
     bool loop;
@@ -126,7 +101,7 @@ int main() {
         drawBoard(gameBoard);
         moveCritters(gameBoard, critterList, critterListSize);
         breedCritters(gameBoard, critterList, critterListSize);
-        starveDoodlebugs(gameBoard, critterList, critterListSize);
+        starveDoodlebugs(critterList, critterListSize);
         cout << "Press enter to continue. Enter any other key to quit." << endl;
         cin.get(userInput);
         if (userInput != '\n')
@@ -180,11 +155,9 @@ void removeDoubles(char board[][BOARD_SIZE], Organism* list[], int listSize){
             delete list[i];
             if (x == 'a'){
                 list[i] = new Ant();
-                cout << list[i]->get_row() << " " << list[i]->get_column() << " occupied - respawning Ant to new location" << endl;
             }
             else if (x == 'd'){
                 list[i] = new Doodlebug();
-                cout << list[i]->get_row() << " " << list[i]->get_column() << " occupied - respawning Doodlebug to new location" << endl;
             }
         }
         if (board[list[i]->get_row()][list[i]->get_column()] == 'e')
@@ -242,6 +215,7 @@ at any given time. listSize is called by reference because it can change dependi
 */
     // Move Doodlebugs
     for (int i = 0; i < listSize; i++) {
+        initializeBoard(board);
         updateBoard(board, list, listSize);
         list[i]->reset_sides();
         list[i]->update_all_sides(board);
@@ -253,6 +227,7 @@ at any given time. listSize is called by reference because it can change dependi
     }
     // Move Ants
     for (int i = 0; i < listSize; i++){
+        initializeBoard(board);
         updateBoard(board, list, listSize);
         list[i]->reset_sides();
         list[i]->update_all_sides(board);
@@ -265,7 +240,7 @@ at any given time. listSize is called by reference because it can change dependi
 void breedCritters(char board[][BOARD_SIZE], Organism* list[], int& listSize){
 /*Precondition: Takes 2D char array board, Organism* array, and Organism* array size. Each Organism* should point to an Ant or Doodlebug derived class
 //object with a derived-class specific definition for breed
-//Postcondition: Calls the breed function yfor each item in the Organism* list array and updates the listSize accordingl
+//Postcondition: Calls the breed function for each item in the Organism* list array and updates the listSize accordingl
 */
     for (int i = 0; i < listSize; i++) {
         updateBoard(board, list, listSize);
@@ -275,14 +250,14 @@ void breedCritters(char board[][BOARD_SIZE], Organism* list[], int& listSize){
     }
 }
 
-void starveDoodlebugs(char board[][BOARD_SIZE], Organism* list[], int& listSize) {
-/*Precondition: Takes 2D char array board, Organism* array, and Organism* array size. Because of polymorphism (Organism* points to dervived class object)
-//isStarved must be defined for both Ants and Doodlebugs, although only Doodlebugs' behavior is affected by starving
+void starveDoodlebugs(Organism* list[], int& listSize) {
+/*Precondition: Takes the Organism* array and Organism* array size. 
 //Postcondition: Checks isStarved() and if returns true, then the Organism is removed from the list. The last item in the list in placed in the empty
 //array position, and the array size and index position are decremented. Note: isStarved always returns false for Ants; for Doodlebugs, it will check
 //to see if an ant has been 'eaten' in the last 3 turns
 */
     for (int i = 0; i < listSize; i++) {
+
         if (list[i]->isStarved()) {
             delete list[i];
             list[i] = list[listSize-1];
@@ -428,9 +403,9 @@ bool Ant::isClear(int move) const {
     return true;
 }
 
-void Ant::update_all_sides(char board[][20]) {
+void Ant::update_all_sides(char board[][BOARD_SIZE]) {
 /*Precondition: Takes as input the gameboard, which should already contain a char type in every location corresponding to the status of the square.
-//Postcondition: hen called on an Ant object, function assigns true to the variable when the adjacent space is occupied or a border. Returns false if it is empty
+//Postcondition: When called on an Ant object, function assigns true to the variable when the adjacent space is occupied or a border. Returns false if it is empty
 */
     if (get_column()== 0 || board[get_row()][get_column()-1] != 'e')  // look left
         left = true;
@@ -534,7 +509,7 @@ void Doodlebug::move(char board[][BOARD_SIZE], int row, int column) {
 *  selects an adjacent empty square to move to. Move is executed by using the setter to reassign the member variable. If there are no empty squares,
 *  then the Doodlebug does not move.
 */
-    eat(); //subfunction 'eat' will set bool value "ate" to true if eating was successful
+    eat();   //subfunction 'eat' will set bool value "ate" to true if eating was successful
     if (!ate) {
         int nextMove = randomNumMax3(); // will be 0-3
         if (isClear(nextMove)) {
